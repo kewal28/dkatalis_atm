@@ -1,0 +1,22 @@
+{
+  "name": "dkatalis_atm",
+  "version": "1.0.0",
+  "description": "",
+  "main": "init.js",
+  "scripts": {
+    "start": "node init.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kewal28/dkatalis_atm.git"
+  },
+  "author": "Kewal Kanojia",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kewal28/dkatalis_atm/issues"
+  },
+  "homepage": "https://github.com/kewal28/dkatalis_atm#readme",
+  "dependencies": {
+    "prompt": "^1.3.0"
+  }
+}
