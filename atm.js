@@ -12,7 +12,10 @@ class ATM {
                 break;
             case 'deposit':
                 this.deposit(keys[1]);
-                break;    
+                break;
+            case 'withdraw':
+                this.withdraw(keys[1]);
+                break;         
             case 'logout':
                 this.logout();
                 break;    
@@ -30,11 +33,12 @@ class ATM {
             this.customers[name] = new Customer(name);
         }
         this.currentUser = this.customers[name];
-        console.log(`Welcome ${name}!`);
+        console.log(`Hello, ${name}!`);
     }
 
     deposit(amount) {
-        if(!this.currentUser.name) {
+        let name = this.currentUser.name;
+        if(!name) {
             console.log(`User is not login`);
             return;
         }
@@ -43,9 +47,29 @@ class ATM {
             return;
         }
         let amt = parseFloat(amount);
-        let name = this.currentUser.name;
         let customer = this.customers[name];
         customer.balance = (customer.balance > 0) ? (customer.balance+amt) : amt;
+        let totalAmount = customer.balance;
+        console.log(`Your balance is ${totalAmount}`);
+    }
+
+    withdraw(amount) {
+        let name = this.currentUser.name;
+        if(!name) {
+            console.log(`User is not login`);
+            return;
+        }
+        if(amount < 0) {
+            console.log(`Amount can't be less than 0`);
+            return;
+        }
+        let amt = parseFloat(amount);
+        let customer = this.customers[name];
+        if(customer.balance < amount) {
+            console.log(`Insufficient balance in your account`);
+            return;
+        }
+        customer.balance = customer.balance-amt;
         let totalAmount = customer.balance;
         console.log(`Your balance is ${totalAmount}`);
     }
