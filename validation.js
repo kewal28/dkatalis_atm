@@ -1,13 +1,14 @@
 class Validation {
     command = ["login", "deposit", "withdraw", "transfer", "logout"];
     checkCommand(input) {
-        let keys = input.split(' ');
-        if (!keys.length) {
-            throw new Error(`Invalid input`);
-        }
-        let w = keys[0].toLowerCase();
-        if(!this.command.includes(w)) {
-            throw new Error(`Invalid command`);
+        if(input) {
+            let keys = input.split(' ');
+            if (keys[0]) {
+                let w = keys[0].toLowerCase();
+                if(!this.command.includes(w)) {
+                    console.log(`Invalid command`);
+                }
+            }
         }
     }
 
@@ -35,14 +36,14 @@ class Validation {
         return true;
     }
 
-    validateTransfer(name, userName, amount) {
+    validateTransfer(name, userName, amount, customers) {
         if(!name) {
             console.log(`User is not login`);
             return false;
         } if(userName == name) {
             console.log(`You can't select your own account`);
             return false;
-        } if(!this.customers[userName]) {
+        } if(!customers[userName]) {
             console.log(`Transfer to not found!`);
             return false;
         } if(amount < 0) {
