@@ -1,22 +1,27 @@
+const {Customer} = require('./customer');
 class ATM {
     customers = {};
     currentUser = {};
 
     process (input) {
         let keys = input.split(' ');
-        let command = keys[0].toLowerCase();
+        let command = keys[0];
         switch (command) {
             case 'login':
                 this.login(keys[1]);
                 break;
+            case 'logout':
+                this.logout();
+                break;    
         
         } 
-        console.log(`Customer list!`, this.customers);
+        // console.log(`Customer list!`, this.customers);
     }
 
     login(name) {
-        if(!this.currentUser) {
-            throw new Error(`User is already login`);
+        if(this.currentUser.name) {
+            console.log(`User is already login`);
+            return;
         }
         if (!this.customers[name]) {
             this.customers[name] = new Customer(name);
@@ -25,6 +30,16 @@ class ATM {
         console.log(`Welcome ${name}!`);
     }
 
+    logout() {
+        if(!this.currentUser.name) {
+            console.log(`User is not login`);
+            return;
+        }
+        let name = this.currentUser.name;
+        this.currentUser = {}
+        console.log(`Goodbye, ${name}!`);
+    }
+
 }
 
-module.exports = ATM;
+module.exports = {ATM};
