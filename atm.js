@@ -27,6 +27,4 @@ class ATM {
 
 }
 
-module.exports = {
-    ATM
-};
+module.exports = ATM;

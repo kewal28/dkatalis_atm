@@ -1,11 +1,15 @@
-const prompt = require('prompt');
+const {Input} = require('./input');
+// const {ATM} = require('./atm');
 
-new Promise((resolve, reject) => {
-    prompt.start();
-    prompt.get(['input'], function (err, result) {
-        if (err) {
-            reject(err)
-        }
-        resolve(result.input);
-    });
-});
+let input = new Input();
+// let atm = new ATM();
+
+let start = async function () {
+    try {
+        let ipt = await input.getInput();
+        console.log(ipt);
+    } catch(error) {
+        console.log(error);
+    }
+}
+start();
