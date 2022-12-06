@@ -1,236 +1,222 @@
 const {Customer} = require('./customer');
 const {Validation} = require('./validation');
 class ATM {
-    customers = {};
-    currentUser = {};
-    validation = new Validation();
-    bug = false;
+    transaction = new Transaction();
 
     process (input) {
         let keys = input.split(' ');
         let command = keys[0];
+        let resp = ``;
         switch (command) {
             case 'login':
-                this.login(keys[1]);
+                if(this.transaction.checkLogin()) {
+                    console.log(`User is already login`);
+                    return;
+                } else {
+                    let check = this.transaction.login(keys[1]);
+                    if(check) {
+                        resp = `${check}\n${this.transaction.printBalance()}\n`;
+                    }
+                }
                 break;
             case 'deposit':
-                this.deposit(keys[1]);
+                this.checkActiveSession();
+                let session = this.transaction.getActiveCustomer();
+                resp = this.transaction.deposit(session, keys[1]);
+                resp = `${resp}\n${this.transaction.printBalance()}\n`;
                 break;
             case 'withdraw':
-                this.withdraw(keys[1]);
+                this.checkActiveSession();
+                resp = this.transaction.withdraw(keys[1]);
+                resp = `${resp}\n${this.transaction.printBalance()}\n`;
                 break;
             case 'transfer':
-                this.transfer(keys[1], keys[2]);
+                this.checkActiveSession();
+                resp = this.transaction.transfer(keys[1], keys[2]);
+                resp = `${resp}\n${this.transaction.printBalance()}\n`;
                 break;
             case 'logout':
-                this.logout();
+                this.checkActiveSession();
+                resp = this.transaction.logout();
                 break;
-        } 
-        this.debug([`Customer list!`, this.customers]);
+        }
+        return resp;
+    }
+    checkActiveSession() {
+        if(!this.transaction.checkLogin()) {
+            console.log(`User is not login`);
+            return;
+        }
+    }
+
+}
+
+class Transaction {
+
+    bug = false;
+    #customers = {};
+    #currentUser = {};
+    validation = new Validation();
+
+    getActiveCustomer() {
+        return this.#currentUser;
+    }
+
+    checkLogin() {
+        if(this.getActiveCustomer().name) {
+            return true;
+        }
+        return false;
     }
 
     login(name) {
+        let output = ``;
         if(!name) {
             console.log(`Please provide valid username.`);
-            return;
+            return false;
         }
-        if(this.currentUser.name) {
-            console.log(`User is already login`);
-            return;
+        if (!this.#customers[name]) {
+            this.#customers[name] = new Customer(name);
         }
-        if (!this.customers[name]) {
-            this.customers[name] = new Customer(name);
-        }
-        this.currentUser = this.customers[name];
-        let customer = this.customers[name];
-        let totalAmount = customer.balance;
-        console.log(`Hello, ${name}!`);
-        console.log(`Your balance is $${totalAmount}`);
-        this.printOwed(name);
+        this.#currentUser = this.#customers[name];
+        output = `Hello, ${name}!`;
+        this.debug([this.#customers]);
+        return output;
     }
 
-    deposit(amount) {
-        let name = this.currentUser.name;
-        if(!this.validation.validateDeposite(name, amount)) {
-            return;
+    deposit(session, amount) {
+        let output = ``;
+        let effectiveAmount = amount;
+        if (session.borrow && session.borrow < 0) {
+
+            let payBorrow = Math.abs(session.borrow);
+            if (Math.abs(session.borrow) > amount) {
+                payBorrow = amount;
+            }
+            effectiveAmount = amount - payBorrow;
+            session.borrow = parseInt(session.borrow) + parseInt(payBorrow);
+
+            let tmpOutput = this.#clearOwed(session, payBorrow);
+            output = `${output}${tmpOutput}`;
         }
-        let amt = parseFloat(amount);
-        amt = this.clearOwed(name, amt);
-        this.debug(["Now Amt", amt]);
-        let customer = this.customers[name];
-        customer.balance = (customer.balance > 0) ? (customer.balance+amt) : amt;
-        let totalAmount = customer.balance;
-        console.log(`Your balance is $${totalAmount}`);
-        this.printOwed(name);
+        let newBalance = session.getBalance() + parseInt(effectiveAmount);
+        session.setBalance(newBalance);
+        return output;
+    }
+
+    #clearOwed(session, payBorrow) {
+        let output = ``;
+        for (let k in session.getOwdeToList()) {
+            if (payBorrow > 0) {
+                let toCustomer = this.#customers[k];
+                let pay = session.getUserOwdeTo(k);
+                if (session.getUserOwdeTo(k) > payBorrow) {
+                    pay = payBorrow;
+                }
+                session.setOwedTo(k, session.getUserOwdeTo(k) - pay);
+                toCustomer.setOwedFrom(session.name, toCustomer.getUserOwdeFrom(session.name) - pay);
+                this.deposit(toCustomer, pay);
+                if (session.name == this.#currentUser.name) {
+                    output = `${output}\Transferred $${pay} to ${toCustomer.name}\n`;
+                }
+                payBorrow = payBorrow - pay;
+            }
+        }
+        return output;
     }
 
     withdraw(amount) {
-        let name = this.currentUser.name;
-        if(!this.validation.validateWithdraw(name, amount)) {
+        let output = ``;
+        if(!this.validation.validateWithdraw(amount)) {
             return;
         }
         let amt = parseFloat(amount);
-        let customer = this.customers[name];
+        let customer = this.getActiveCustomer();
         if(customer.balance < amount) {
             console.log(`Insufficient balance in your account`);
             return;
         }
         customer.balance = customer.balance-amt;
-        let totalAmount = customer.balance;
-        console.log(`Your balance is $${totalAmount}`);
+        return output;
     }
 
-    transfer(userName, amount) {
-        let totalAmount,blcAmout,transferAmt = 0;
-        let name = this.currentUser.name;
-        if(!this.validation.validateTransfer(name, userName, amount, this.customers)) {
-            return;
+    transfer(name, amount) {
+        let output = ``;
+        let userName = this.#currentUser.name;
+        if (!this.#customers[name]) {
+            throw new Error(`No customer exist with name ${name}.`);
         }
-        let amt = parseFloat(amount);
-        let transferToCustomer = this.customers[userName];
-        let customer = this.customers[name];
-        let owed;
-        this.clearOwedTo(userName, name, amt);
-        owed = this.clearOwedFrom(name, userName, amt);
-        this.debug(['amt', amt]);
-        if(!owed) {
-            if(customer.balance < amt) {
-                transferAmt = customer.balance;
-                blcAmout = amt-customer.balance;
-                this.addOwedTo(name, userName, blcAmout)
-                this.addOwedFrom(userName, name, blcAmout)
-                customer.balance = 0;
-            } else {
-                transferAmt = amt;
-                customer.balance = customer.balance-amt;
+        let toCustomer = this.#customers[name];
+
+        if (this.#currentUser.getUserOwdeFrom(name) && this.#currentUser.getUserOwdeFrom(name) != undefined) {
+            let virtuallyPaid = amount;
+            let remaining = this.#currentUser.getUserOwdeFrom(name) - amount;
+            if (this.#currentUser.getUserOwdeFrom(name) < amount) {
+                virtuallyPaid = this.#currentUser.getUserOwdeFrom(name);
+                remaining = this.#currentUser.getUserOwdeFrom(name) - virtuallyPaid;
+            }
+            this.#currentUser.setOwedFrom(name, remaining);
+            toCustomer.setOwedTo(userName, remaining);
+            toCustomer.borrow = toCustomer.borrow + parseInt(virtuallyPaid);
+            amount = amount - virtuallyPaid;
+        }
+        if (amount > 0) {
+            let tmpOutput = this.#pustToOwedList(amount, toCustomer);
+            output = `${output}${tmpOutput}`;
+        }
+        return output;
+    }
+
+    #pustToOwedList(amount, toCustomer) {
+        let output = ``;
+        let currentBalance = this.#currentUser.getBalance();
+        let userName = this.#currentUser.name;
+        let effectiveAmount = amount;
+        if (currentBalance < amount) {
+            let diff = amount - currentBalance;
+            this.#currentUser.borrow = this.#currentUser.borrow - parseInt(diff);
+            let owedFrom = toCustomer.getUserOwdeFrom(userName) + parseInt(diff);
+            toCustomer.setOwedFrom(userName, owedFrom);
+            this.#currentUser.setOwedTo(toCustomer.name, owedFrom);
+            effectiveAmount = effectiveAmount - diff;
+        }
+        this.withdraw(effectiveAmount);
+        this.deposit(toCustomer, effectiveAmount);
+        if (effectiveAmount > 0) {
+            output = `${output}\Transferred $${effectiveAmount} to ${toCustomer.name}`;
+        }
+        return output;
+    }
+
+    printBalance() {
+        let output = ``;
+        let customer = this.getActiveCustomer();
+        output = `Your balance is $${customer.balance}`;
+        let owdeToList = customer.owedTo;
+        for(let c in customer.owedTo) {
+            if(owdeToList[c] > 0) {
+                output = `${output} \nOwed $${owdeToList[c]} to ${this.#customers[c].name}`;
             }
         }
-        transferToCustomer.balance = transferToCustomer.balance+transferAmt;
-        totalAmount = customer.balance;
-        console.log(`Transferred $${transferAmt} to ${userName}`);
-        console.log(`Your balance is $${totalAmount}`);
-        this.printOwed(name);
-    }
-
-    clearOwed(name, amount) {
-        let customer = this.customers[name];
-        let blc = amount;
-        for(let c of customer.owedTo) {
-            let transferAmt;
-            let transferToCustomer = this.customers[c.user];
-            if(c.amount > blc) {
-                c.amount = c.amount-blc;
-                transferAmt = blc;
-                transferToCustomer.balance = transferToCustomer.balance+transferAmt;
-                this.clearOwedFrom(c.user, name, transferAmt);
-                console.log(`Transferred $${transferAmt} to ${c.user}`);
-                return 0;
-            } else {
-               blc =  blc - c.amount;
-               transferAmt = c.amount;
-               c.amount = 0;
-               transferToCustomer.balance = transferToCustomer.balance+transferAmt;
-               this.clearOwedFrom(c.user, name, transferAmt);
-               console.log(`Transferred $${transferAmt} to ${c.user}`);
+        let owdeFromList = customer.owedFrom;
+        for(let c in customer.owedFrom) {
+            if(owdeFromList[c] > 0) {
+                output = `${output} \nOwed $${owdeFromList[c]} From ${this.#customers[c].name}`;
             }
         }
-        return blc;
-    }
-
-    clearOwedTo(name, owedTo, amount) {
-        let customer = this.customers[name];
-        let blc = amount;
-        let owed = false;
-        for(let c of customer.owedTo) {
-            if(owedTo == c.user) {
-                if(c.amount > blc) {
-                    c.amount = c.amount-blc;
-                    break;
-                } else {
-                    blc = blc-c.amount;
-                    c.amount = 0;
-                }
-                owed = true;
-            }
-        }
-        return owed;
-    }
-
-    clearOwedFrom(name, owedFrom, amount) {
-        let customer = this.customers[name];
-        let blc = amount;
-        let owed = false;
-        for(let c of customer.owedFrom) {
-            if(owedFrom == c.user) {
-                if(c.amount > blc) {
-                    c.amount = c.amount-blc;
-                    break;
-                } else {
-                    blc = blc-c.amount;
-                    c.amount = 0;
-                }
-                owed = true;
-            }
-        }
-        return owed;
-    }
-
-    addOwedTo(name, userName, blcAmout) {
-        let customer = this.customers[name];
-        let checkFound = false;
-        for(let c of customer.owedTo) {
-            if(c.user == userName) {
-                let newAmout = c.amount+blcAmout;
-                c.amount = newAmout;
-                checkFound = true;
-            }
-        }
-        if(!checkFound) {
-            let owed = {user: userName, amount: blcAmout};
-            // console.log(owed);
-            customer.owedTo.push(owed);
-        }
-    }
-
-    addOwedFrom(name, userName, blcAmout) {
-        let customer = this.customers[name];
-        let checkFound = false;
-        for(let c of customer.owedFrom) {
-            if(c.user == userName) {
-                let newAmout = c.amount-blcAmout;
-                c.amount = newAmout;
-                checkFound = true;
-            }
-        }
-        if(!checkFound) {
-            let owed = {user: userName, amount: blcAmout};
-            // console.log(owed);
-            customer.owedFrom.push(owed);
-        }
-    }
-
-    printOwed(name) {
-        let customer = this.customers[name];
-        for(let c of customer.owedTo) {
-            // if(c.amount > 0) {
-                console.log(`Owed $${c.amount} to ${c.user}`);
-            // }
-        }
-        for(let c of customer.owedFrom) {
-            // if(c.amount > 0) {
-                console.log(`Owed $${c.amount} from ${c.user}`);
-            // }
-        }
+        return output;
     }
 
     logout() {
-        if(!this.currentUser.name) {
+        let output = ``;
+        if(!this.#currentUser.name) {
             console.log(`User is not login`);
             return;
         }
-        let name = this.currentUser.name;
-        this.currentUser = {}
-        console.log(`Goodbye, ${name}!`);
+        let name = this.#currentUser.name;
+        this.#currentUser = {}
+        output = `Goodbye, ${name}!`;
+        return output;
     }
 
     debug(obj = []) {
@@ -238,7 +224,6 @@ class ATM {
             console.log(obj);
         }
     }
-
 }
 
 module.exports = {ATM};

@@ -12,11 +12,7 @@ class Validation {
         }
     }
 
-    validateDeposite(name, amount) {
-        if(!name) {
-            console.log(`User is not login`);
-            return false;
-        }
+    validateDeposite(amount) {
         if(amount < 0) {
             console.log(`Amount can't be less than 0`);
             return false;
@@ -24,11 +20,7 @@ class Validation {
         return true;
     }
 
-    validateWithdraw(name, amount) {
-        if(!name) {
-            console.log(`User is not login`);
-            return false;
-        }
+    validateWithdraw(amount) {
         if(amount < 0) {
             console.log(`Amount can't be less than 0`);
             return false;
@@ -37,10 +29,7 @@ class Validation {
     }
 
     validateTransfer(name, userName, amount, customers) {
-        if(!name) {
-            console.log(`User is not login`);
-            return false;
-        } if(userName == name) {
+        if(userName == name) {
             console.log(`You can't select your own account`);
             return false;
         } if(!customers[userName]) {
