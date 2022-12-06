@@ -23,7 +23,7 @@ class ATM {
                 this.checkActiveSession();
                 let session = this.transaction.getActiveCustomer();
                 resp = this.transaction.deposit(session, keys[1]);
-                resp = `${resp}\n${this.transaction.printBalance()}\n`;
+                resp = `${resp}${this.transaction.printBalance()}\n`;
                 break;
             case 'withdraw':
                 this.checkActiveSession();
@@ -36,8 +36,7 @@ class ATM {
                 resp = `${resp}\n${this.transaction.printBalance()}\n`;
                 break;
             case 'logout':
-                this.checkActiveSession();
-                resp = this.transaction.logout();
+                this.transaction.logout();
                 break;
         }
         return resp;
@@ -141,7 +140,7 @@ class Transaction {
     }
 
     transfer(name, amount) {
-        let output = ``;
+        let output = '';
         let userName = this.#currentUser.name;
         if (!this.#customers[name]) {
             throw new Error(`No customer exist with name ${name}.`);
@@ -168,7 +167,7 @@ class Transaction {
     }
 
     #pustToOwedList(amount, toCustomer) {
-        let output = ``;
+        let output = '';
         let currentBalance = this.#currentUser.getBalance();
         let userName = this.#currentUser.name;
         let effectiveAmount = amount;
@@ -183,7 +182,7 @@ class Transaction {
         this.withdraw(effectiveAmount);
         this.deposit(toCustomer, effectiveAmount);
         if (effectiveAmount > 0) {
-            output = `${output}\Transferred $${effectiveAmount} to ${toCustomer.name}`;
+            output = `${output}\nTransferred $${effectiveAmount} to ${toCustomer.name}`;
         }
         return output;
     }
@@ -208,15 +207,13 @@ class Transaction {
     }
 
     logout() {
-        let output = ``;
         if(!this.#currentUser.name) {
             console.log(`User is not login`);
-            return;
+            return false;
         }
         let name = this.#currentUser.name;
         this.#currentUser = {}
-        output = `Goodbye, ${name}!`;
-        return output;
+        console.log(`Goodbye, ${name}!`);
     }
 
     debug(obj = []) {
