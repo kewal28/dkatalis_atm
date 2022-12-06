@@ -1,4 +1,10 @@
-# dkatalis_atm
+# How to Start
+
+``
+node init.js
+or 
+npm start
+``
 
 # ATM
 
